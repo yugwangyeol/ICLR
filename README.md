@@ -14,7 +14,7 @@ Training/evaluation code and checkpoints will be released with the camera-ready 
 | `manifests/filter_stats.json` | Exclusion counts produced by the filter (see below). |
 | `preprocess/prepare_pix2cap_thing.py` | Filter that builds the manifest from `pix2cap_coco_train.json`. |
 | `preprocess/pix2cap_filters.py` | Caption-validity patterns and crop-visibility test used by the filter. |
-| `stats/siglip2_target_feature_norm_stats.pt` | Channel-wise `running_mean` / `running_var` (1,152-d) for the frozen SigLIP2 target features (Appendix A.7). |
+| `stats/siglip2_target_feature_norm_stats.pt` | Channel-wise `running_mean` / `running_var` (1,152-d) used to normalize the diffusion targets (Appendix A.7). |
 
 ## Reproducing the 16,477-image training set
 
@@ -51,6 +51,15 @@ Each excluded image is counted under its first invalid crop-visible instance. Be
 are evaluated inside the 512×512 crop, a filter applied to the full image yields a different subset.
 
 Checksums: `train_image_ids.txt` SHA-256 `a63cc71c756b801b06efa3c277191c35d76728acfa9af9e696094dfed0883fae`.
+
+## Normalization statistics
+
+`stats/siglip2_target_feature_norm_stats.pt` is computed from the first 10,000 COCO train2017 images (filename order).
+Each image is resized to 224×224 by the `google/siglip2-so400m-patch14-224` image processor; the statistics are taken over the
+encoder's final post-layernorm output (256 patches × 1,152 channels per image) after a parameter-free LayerNorm
+(`F.layer_norm`, eps 1e-6), accumulated in float64 (unbiased variance) and stored in float32.
+The diffusion targets are the last transformer-layer output of the same encoder, before its post-layernorm, passed through the
+same parameter-free LayerNorm; they are normalized with these fixed statistics as `(z - mean) / sqrt(var + 1e-5)`.
 
 ## Other settings (see Appendix A.7 and B.2–B.3 of the revised paper)
 
